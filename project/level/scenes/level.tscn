@@ -116,12 +116,15 @@ shadow_enabled = true
 shadow_blur = 0.5
 
 [node name="Menu" type="Control" parent="."]
+visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="ColorRect" type="ColorRect" parent="Menu"]
 layout_mode = 1
@@ -272,12 +275,59 @@ theme_override_font_sizes/font_size = 35
 text = "QUIT"
 flat = true
 
+[node name="MultiplayerChat" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 532.0
+offset_bottom = 406.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="Container" type="VBoxContainer" parent="MultiplayerChat"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ChatTitle" type="Label" parent="MultiplayerChat/Container"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_icc4p")
+text = "Welcome to Global Chat!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Chat" type="TextEdit" parent="MultiplayerChat/Container"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("3_icc4p")
+text = "
+"
+editable = false
+
+[node name="Message" type="LineEdit" parent="MultiplayerChat/Container"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_icc4p")
+
+[node name="Send" type="Button" parent="MultiplayerChat/Container"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_icc4p")
+text = "Send"
+
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://level/scenes/player.tscn")
 spawn_path = NodePath("../PlayersContainer")
 
 [node name="PlayersContainer" type="Node3D" parent="."]
 
+[node name="GameControls" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
 [connection signal="pressed" from="Menu/MainContainer/MainMenu/Buttons/Host" to="." method="_on_host_pressed"]
 [connection signal="pressed" from="Menu/MainContainer/MainMenu/Buttons/Join" to="." method="_on_join_pressed"]
 [connection signal="pressed" from="Menu/MainContainer/MainMenu/Option4/Quit" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="MultiplayerChat/Container/Send" to="." method="_on_send_pressed"]

@@ -7,11 +7,27 @@ extends Node3D
 @onready var menu: Control = $Menu
 @export var player_scene: PackedScene
 
-func _ready():		
+# multiplayer chat
+@onready var message: LineEdit = $MultiplayerChat/Container/Message
+@onready var send: Button = $MultiplayerChat/Container/Send
+@onready var chat: TextEdit = $MultiplayerChat/Container/Chat
+@onready var multiplayer_chat: Control = $MultiplayerChat
+var chat_visible = false
+
+func _ready():
+	multiplayer_chat.hide()
+	menu.show()
+	multiplayer_chat.set_process_input(true)
+	#if not multiplayer.is_server():
+		#return
+		
 	Network.connect("player_connected", Callable(self, "_on_player_connected"))
 	multiplayer.peer_disconnected.connect(_remove_player)
 	if OS.has_feature("dedicated_server"):
 		_start_host()
+	else:
+		var display_size = DisplayServer.screen_get_size()
+		get_window().size = display_size / 2
 	
 func _on_player_connected(peer_id, player_info):
 	for id in Network.players.keys():
@@ -82,3 +98,39 @@ func sync_player_skin(id: int, skin_name: String):
 func _on_quit_pressed() -> void:
 	get_tree().quit()
 	
+# ---------- MULTIPLAYER CHAT ----------
+func toggle_chat():
+	if menu.visible:
+		return
+
+	chat_visible = !chat_visible
+	if chat_visible:
+		multiplayer_chat.show()
+		message.grab_focus()
+	else:
+		multiplayer_chat.hide()
+		get_viewport().set_input_as_handled()
+
+func is_chat_visible() -> bool:
+	return chat_visible
+
+func _input(event):
+	if event.is_action_pressed("toggle_chat"):
+		toggle_chat()
+	elif event is InputEventKey and event.keycode == KEY_ENTER:
+		_on_send_pressed()
+
+func _on_send_pressed() -> void:
+	var trimmed_message = message.text.strip_edges()
+	if trimmed_message == "":
+		return # do not send empty messages
+
+	var nick = Network.players[multiplayer.get_unique_id()]["nick"]
+	
+	rpc("msg_rpc", nick, trimmed_message)
+	message.text = ""
+	message.grab_focus()
+
+@rpc("any_peer", "call_local")
+func msg_rpc(nick, msg):
+	chat.text += str(nick, " : ", msg, "\n")

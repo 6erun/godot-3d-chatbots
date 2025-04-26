@@ -39,6 +39,7 @@ func join_game(nickname: String, skin_color: String, address: String = SERVER_AD
 	var error = peer.create_client(address, SERVER_PORT)
 	if error:
 		return error
+
 	multiplayer.multiplayer_peer = peer
 	if !nickname:
 		nickname = "Player_" + str(multiplayer.get_unique_id())
@@ -60,7 +61,7 @@ func _register_player(new_player_info):
 	var new_player_id = multiplayer.get_remote_sender_id()
 	players[new_player_id] = new_player_info
 	player_connected.emit(new_player_id, new_player_info)
-	print("debug _register_player ", players)
+	#print("debug function _register_player on Network.gd: ", players, "\n")
 	
 func _on_player_disconnected(id):
 	players.erase(id)

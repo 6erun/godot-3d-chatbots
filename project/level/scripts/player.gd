@@ -32,6 +32,11 @@ func _ready():
 func _physics_process(delta):
 	if not is_multiplayer_authority(): return
 	
+	var current_scene = get_tree().get_current_scene()
+	if current_scene and current_scene.has_method("is_chat_visible") and current_scene.is_chat_visible() and is_on_floor():
+		freeze()
+		return
+	
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 		_body.animate(velocity)
@@ -46,6 +51,12 @@ func _physics_process(delta):
 	move_and_slide()
 	_body.animate(velocity)
 	_check_fall_and_respawn()
+	
+func freeze():
+	velocity.x = 0
+	velocity.z = 0
+	_current_speed = 0
+	_body.animate(Vector3.ZERO)
 	
 func _move() -> void:
 	var _input_direction: Vector2 = Vector2.ZERO
