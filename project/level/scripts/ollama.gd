@@ -10,6 +10,8 @@ var TAG = "ollama"
 @export var model = DEFAULT_MODEL
 @export var system_prompt = "you are an internet troll chatting on internet. Keep responses short and concise"
 
+var http_debug_log = false
+
 enum InitState {
 	INIT,
 	LOADING,
@@ -76,6 +78,16 @@ var state: InitState = InitState.INIT
 func _ready():
 	requests = HttpApiRequest.new()
 	add_child(requests)
+
+	# Parse command line arguments
+	var args = OS.get_cmdline_args()
+	var parsed_args = _parse_cli_args(args)
+	if parsed_args.has("model"):
+		model = parsed_args["model"]
+		_logS("Model: " + model)
+	else:
+		_logS("No model specified, using default: " + DEFAULT_MODEL)
+
 	_prepare_models()
 	pass # Replace with function body.
 
@@ -106,7 +118,7 @@ func list_models(result_cb: Callable):
 					
 	requests.process_request(cb, DEFAULT_API_SITE + "/tags", {
 		"method" : HTTPClient.METHOD_GET,
-		"debug_log" : true,
+		"debug_log" : self.http_debug_log,
 	})	
 
 func pull_model(model_to_pull: String, result_cb: Callable):
@@ -125,7 +137,7 @@ func pull_model(model_to_pull: String, result_cb: Callable):
 			"stream" : false
 		},
 		"method" : HTTPClient.METHOD_POST,
-		"debug_log" : true,
+		"debug_log" : self.http_debug_log,
 	})	
 
 
@@ -148,13 +160,13 @@ func generate(prompt: String, result_cb: Callable):
 		
 	requests.process_request(cb, DEFAULT_API_SITE + "/generate", {
 		"data" : {
-			"model" : DEFAULT_MODEL,
+			"model" : self.model,
 			"prompt" : prompt,
 			"stream" : false,
 			"system" : self.system_prompt
 		},
 		"method" : HTTPClient.METHOD_POST,
-		"debug_log" : true,
+		"debug_log" : self.http_debug_log,
 	})
 
 func chat(messages: Array, result_cb: Callable):
@@ -199,17 +211,33 @@ func chat(messages: Array, result_cb: Callable):
 
 	requests.process_request(cb, DEFAULT_API_SITE + "/chat", {
 		"data" : {
-			"model" : DEFAULT_MODEL,
+			"model" : self.model,
 			"messages" : msg_list,
 			"stream" : false,
 		},
 		"method" : HTTPClient.METHOD_POST,
-		"debug_log" : true,
+		"debug_log" : self.http_debug_log,
 	})
 
 #endregion
 
+#region Public methods
+func is_ready() -> bool:
+	return self.state == InitState.READY
+#endregion
+
 #region Helpers
+func _parse_cli_args(args: Array) -> Dictionary:
+	var parsed_args = {}
+	for i in range(args.size()):
+		if args[i].find("=") != -1:
+			var key_value = args[i].split("=")
+			if key_value.size() == 2:
+				parsed_args[key_value[0]] = key_value[1]
+		else:
+			parsed_args[args[i]] = true
+	return parsed_args
+
 func _prepare_models():
 	list_models(func (result):
 		_logS("local models: ")

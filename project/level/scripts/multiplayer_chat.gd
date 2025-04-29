@@ -20,6 +20,22 @@ func _input(event):
 func _process(delta):
 	pass
 
+func is_chat_active() -> bool:
+	return is_visible() and message.has_focus()
+
+func toggle_chat(grab_focus: bool = true):
+	if get_tree().paused:
+		return
+
+	if is_visible():
+		hide()
+		get_viewport().set_input_as_handled()
+	else:
+		show()
+		message.text = ""
+		if grab_focus:
+			message.grab_focus()
+
 func add_message(nick: String, msg: String):
 	var lines = msg.split("\n")
 	for line in lines:

@@ -19,6 +19,7 @@ var messages = {}
 var TAG = "Bot"
 
 var selected_player : String
+var selected_player_updated : int = 0
 
 func _init(state: GameStateServer, nick: String = "Bot", position: Vector3 = Vector3.ZERO):
 	id = _bot_next_id
@@ -38,12 +39,16 @@ func _ready():
 
 func _process(delta):
 	var result = find_player_by_distance(10)
-	if result.is_empty():
-		self.selected_player = ""
-		self.game_state.rpc("sync_player_look_at", 1, self.nickname, self.player.global_position + Vector3(0, 0, 1))
+	if result.is_empty() or !ollama.is_ready():
+		if !self.selected_player.is_empty():
+			self.selected_player = ""
+			self.game_state.rpc("sync_player_look_at", 1, self.nickname, self.player.global_position + Vector3(0, 0, 1))
 	else:
 		self.selected_player = result[0]
-		self.game_state.rpc("sync_player_look_at", 1, self.nickname, result[1].global_position)
+		var ts = Time.get_ticks_msec()
+		if ts - selected_player_updated > 500:
+			self.game_state.rpc("sync_player_look_at", 1, self.nickname, result[1].global_position)
+			selected_player_updated = ts
 		
 func _logS(msg: String):
 	print(TAG + ": " + msg)
@@ -77,6 +82,14 @@ func on_message(nickname: String, message: String):
 	if nickname != self.selected_player:
 		return
 
+	if !ollama.is_ready():
+		_logS("ollama is not ready yet.")
+		return
+
+	if message.begins_with("/"):
+		process_command(message.substr(1, message.length() - 1), nickname)
+		return
+
 	if nickname in messages.keys():
 		messages[nickname].append(message)
 	else:
@@ -88,3 +101,35 @@ func on_message(nickname: String, message: String):
 		self.game_state.rpc("msg_rpc", self.nickname, response.message.content)
 		pass
 	)
+
+func process_command(command: String, peer_nickname: String):
+	command = command.strip_edges().to_lower()
+	var args = command.split(" ")
+
+	if args.size() == 0:
+		return
+	
+	match args[0]:
+		"help":
+			game_state.rpc("msg_rpc", self.nickname, "Available commands: help, clear_memory, model, system_prompt")
+		"system_prompt":
+			if args.size() > 1:
+				var prompt = " ".join(args.slice(1, args.size()))
+				ollama.system_prompt = prompt
+				game_state.rpc("msg_rpc", self.nickname, "System prompt set to: " + prompt)
+			else:
+				game_state.rpc("msg_rpc", self.nickname, "Current system prompt: " + self.ollama.system_prompt)
+		"model":
+			if args.size() > 1:
+				var model_name = args[1]
+				ollama.model = model_name
+				ollama._pull_models()
+			else:
+				game_state.rpc("msg_rpc", self.nickname, "Current model: " + self.ollama.model)		
+		"clear_memory":
+			messages[peer_nickname].clear()
+			game_state.rpc("msg_rpc", self.nickname, "Chat cleared.")
+
+		_:
+			game_state.rpc("msg_rpc", self.nickname, "Unknown command: " + command)
+	
