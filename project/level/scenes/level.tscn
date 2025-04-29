@@ -1,8 +1,8 @@
 [gd_scene load_steps=17 format=3 uid="uid://dugaivbj1o66n"]
 
 [ext_resource type="Script" path="res://level/scripts/level.gd" id="1_e1sh7"]
-[ext_resource type="PackedScene" uid="uid://cffjduipbb3s5" path="res://level/scenes/player.tscn" id="1_uvcbi"]
 [ext_resource type="FontFile" uid="uid://diapabmalpcrj" path="res://assets/fonts/Kurland.ttf" id="3_icc4p"]
+[ext_resource type="Script" path="res://level/scripts/multiplayer_chat.gd" id="3_lp3mk"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_r5xs5"]
 size = Vector2(90, 90)
@@ -43,7 +43,6 @@ color = Color(0, 0, 0, 0)
 
 [node name="Level" type="Node3D"]
 script = ExtResource("1_e1sh7")
-player_scene = ExtResource("1_uvcbi")
 
 [node name="Environment" type="Node3D" parent="."]
 
@@ -276,12 +275,15 @@ text = "QUIT"
 flat = true
 
 [node name="MultiplayerChat" type="Control" parent="."]
+visible = false
 layout_mode = 3
 anchors_preset = 0
-offset_right = 532.0
+offset_right = 521.0
 offset_bottom = 406.0
+scale = Vector2(1.6, 1.6)
 size_flags_horizontal = 4
 size_flags_vertical = 4
+script = ExtResource("3_lp3mk")
 
 [node name="Container" type="VBoxContainer" parent="MultiplayerChat"]
 layout_mode = 1
@@ -305,10 +307,13 @@ theme_override_fonts/font = ExtResource("3_icc4p")
 text = "
 "
 editable = false
+wrap_mode = 1
+indent_wrapped_lines = true
 
 [node name="Message" type="LineEdit" parent="MultiplayerChat/Container"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_icc4p")
+placeholder_text = "type here"
 
 [node name="Send" type="Button" parent="MultiplayerChat/Container"]
 layout_mode = 2
@@ -326,6 +331,8 @@ layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
+
+[node name="BotsContainer" type="Node" parent="."]
 
 [connection signal="pressed" from="Menu/MainContainer/MainMenu/Buttons/Host" to="." method="_on_host_pressed"]
 [connection signal="pressed" from="Menu/MainContainer/MainMenu/Buttons/Join" to="." method="_on_join_pressed"]

@@ -33,13 +33,15 @@ func _physics_process(delta):
 	if not is_multiplayer_authority(): return
 	
 	var current_scene = get_tree().get_current_scene()
-	if current_scene and current_scene.has_method("is_chat_visible") and current_scene.is_chat_visible() and is_on_floor():
+	var client : GameStateClient = current_scene.get("game_state")
+
+	if client.is_chat_active() and is_on_floor():
 		freeze()
 		return
-	
-	if not is_on_floor():
-		velocity.y -= gravity * delta
-		_body.animate(velocity)
+		
+	#if not is_on_floor():
+		#velocity.y -= gravity * delta
+		#_body.animate(velocity)
 		
 	if is_on_floor():
 		if Input.is_action_just_pressed("jump"):
@@ -96,7 +98,7 @@ func _respawn():
 	global_transform.origin = _respawn_point
 	velocity = Vector3.ZERO
 	
-@rpc("any_peer", "reliable")
+@rpc("any_peer", "reliable", "call_local")
 func change_nick(new_nick: String):
 	if nickname:
 		nickname.text = new_nick

@@ -4,6 +4,8 @@ const SERVER_ADDRESS: String = "127.0.0.1"
 const SERVER_PORT: int = 8080
 const MAX_PLAYERS : int = 10
 
+var TAG = "Network"
+
 var players = {}
 var player_info = {
 	"nick" : "host",
@@ -13,14 +15,21 @@ var player_info = {
 signal player_connected(peer_id, player_info)
 signal server_disconnected
 
+func _logS(msg: String):
+	print(TAG + ": " + msg)
+
 func _process(_delta):
 	if Input.is_action_just_pressed("quit"):
 		get_tree().quit(0)
 		
 func _ready() -> void:
+	# Emitted when this MultiplayerAPI's multiplayer_peer disconnects from server. Only emitted on clients.
 	multiplayer.server_disconnected.connect(_on_connection_failed)
 	multiplayer.connection_failed.connect(_on_server_disconnected)
 	multiplayer.peer_disconnected.connect(_on_player_disconnected)
+	# Emitted when this MultiplayerAPI's multiplayer_peer connects with a new peer. 
+	# ID is the peer ID of the new peer. Clients get notified when other clients connect to the same server. 
+	# Upon connecting to a server, a client also receives this signal for the server (with ID being 1).
 	multiplayer.peer_connected.connect(_on_player_connected)
 	multiplayer.connected_to_server.connect(_on_connected_ok)
 
@@ -54,6 +63,8 @@ func _on_connected_ok():
 	player_connected.emit(peer_id, player_info)
 	
 func _on_player_connected(id):
+	_logS("Player connected: " + str(id))
+	# send info to new player
 	_register_player.rpc_id(id, player_info)
 	
 @rpc("any_peer", "reliable")
