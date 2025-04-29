@@ -52,6 +52,7 @@ Go to `Debug` > `Customize Run Instances`, then enable `Enable Multiple Instance
 * <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to move.
 * <kbd>Shift</kbd> to run.
 * <kbd>Space</kbd> to jump.
+* <kbd>`</kbd> to show/hide chat
 * <kbd>Esc</kbd> to quit.
 
 ## Credits
