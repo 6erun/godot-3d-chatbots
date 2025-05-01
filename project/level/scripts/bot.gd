@@ -47,7 +47,10 @@ func _process(delta):
 		self.selected_player = result[0]
 		var ts = Time.get_ticks_msec()
 		if ts - selected_player_updated > 500:
-			self.game_state.rpc("sync_player_look_at", 1, self.nickname, result[1].global_position)
+			var dir_to_target = (result[1].global_position - self.player.global_position).normalized()
+			var dir_to_target_xz = Vector3(dir_to_target.x, 0, dir_to_target.z).normalized()
+			var look_at = self.player.global_position + dir_to_target_xz
+			self.game_state.rpc("sync_player_look_at", 1, self.nickname, look_at)
 			selected_player_updated = ts
 		
 func _logS(msg: String):

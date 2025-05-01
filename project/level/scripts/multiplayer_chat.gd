@@ -16,6 +16,11 @@ func _input(event):
 	if event is InputEventKey and event.keycode == KEY_ENTER:
 		_on_send_pressed()
 
+	if event is InputEventMouseButton and event.pressed:
+		var local_pos = event.position
+		if not get_global_rect().has_point(local_pos):
+			message.release_focus()
+
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	pass
