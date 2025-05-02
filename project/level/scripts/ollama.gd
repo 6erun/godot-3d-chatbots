@@ -88,6 +88,12 @@ func _ready():
 	else:
 		_logS("No model specified, using default: " + DEFAULT_MODEL)
 
+	if parsed_args.has("debug_log"):
+		http_debug_log = str(parsed_args["debug_log"]).to_lower() == "true"
+	else:
+		http_debug_log = false
+	_logS("Debug log: " + str(http_debug_log))
+
 	_prepare_models()
 	pass # Replace with function body.
 
