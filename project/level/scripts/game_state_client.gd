@@ -61,7 +61,7 @@ func is_chat_active() -> bool:
 
 func _input(event):
 	if event.is_action_pressed("toggle_chat"):
-		toggle_chat(false)
+		toggle_chat(true)
 
 func _on_new_message(msg: String):
 	var nick = Network.players[multiplayer.get_unique_id()]["nick"]

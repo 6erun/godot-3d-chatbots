@@ -16,11 +16,6 @@ func _input(event):
 	if event is InputEventKey and event.keycode == KEY_ENTER:
 		_on_send_pressed()
 
-	if event is InputEventMouseButton and event.pressed:
-		var local_pos = event.position
-		if not get_global_rect().has_point(local_pos):
-			message.release_focus()
-
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	pass
@@ -28,7 +23,7 @@ func _process(delta):
 func is_chat_active() -> bool:
 	return is_visible() and message.has_focus()
 
-func toggle_chat(grab_focus: bool = true):
+func toggle_chat(_grab_focus: bool = true):
 	if get_tree().paused:
 		return
 
@@ -38,7 +33,7 @@ func toggle_chat(grab_focus: bool = true):
 	else:
 		show()
 		message.text = ""
-		if grab_focus:
+		if _grab_focus:
 			message.grab_focus()
 
 func add_message(nick: String, msg: String):

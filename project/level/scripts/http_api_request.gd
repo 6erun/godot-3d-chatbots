@@ -157,14 +157,17 @@ func process_request(
 					#print(JSON.stringify(json), "\t")
 					json["error"] = 0
 					json["response_code"] = response_code
+					_logS("response: " + JSON.stringify(json))
 					user_callback.call(json)
 				"text/plain":
 					var text = body.get_string_from_utf8()
-					user_callback.call({
+					var json_string = {
 						"error":0,
 						"response_code":0,
 						"data":text
-						})
+						}
+					_logS("response: " + json_string)
+					user_callback.call(json_string)
 		pass
 	
 	request.request_completed.connect(on_completed)

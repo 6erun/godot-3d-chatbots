@@ -1,8 +1,8 @@
 class_name OllamaApi
 extends Node
 
-#const DEFAULT_MODEL = "llama3.1:8b"
-const DEFAULT_MODEL = "gemma3:4b"
+const DEFAULT_MODEL = "llama3.1:8b"
+#const DEFAULT_MODEL = "gemma3:4b"
 const DEFAULT_API_SITE = "http://localhost:11434/api"
 
 var TAG = "ollama"
@@ -10,7 +10,7 @@ var TAG = "ollama"
 @export var model = DEFAULT_MODEL
 @export var system_prompt = "you are an internet troll chatting on internet. Keep responses short and concise"
 
-var http_debug_log = false
+var http_debug_log = true
 
 enum InitState {
 	INIT,
@@ -90,8 +90,6 @@ func _ready():
 
 	if parsed_args.has("debug_log"):
 		http_debug_log = str(parsed_args["debug_log"]).to_lower() == "true"
-	else:
-		http_debug_log = false
 	_logS("Debug log: " + str(http_debug_log))
 
 	_prepare_models()
@@ -174,8 +172,8 @@ func generate(prompt: String, result_cb: Callable):
 		"method" : HTTPClient.METHOD_POST,
 		"debug_log" : self.http_debug_log,
 	})
-
-func chat(messages: Array, result_cb: Callable):
+			
+func chat(messages: Array, result_cb: Callable, tools: Array = []):
 	var cb = func(body: Dictionary):
 		var cb_response : ChatResponse = ChatResponse.new()
 		var error = body.error
@@ -192,33 +190,13 @@ func chat(messages: Array, result_cb: Callable):
 		result_cb.call(cb_response)
 		pass
 
-	var msg_list = []
-
-	msg_list.append({
-		"role": "system",
-		"content": self.system_prompt
-	})
-
-	for i in range(messages.size()):
-		var msg = messages[i]
-		if msg is String:
-			msg_list.append({
-				"role": "user",
-				"content": msg
-			})
-		elif msg is Dictionary:
-			msg_list.append({
-				"role": messages[i]["role"] if messages[i].has("role") else "user",
-				"content": messages[i]["content"] if messages[i].has("content") else messages[i]
-			})
-		else:
-			_logS("Invalid message type: " + str(msg))
-			continue
+	var msg_list = _prepare_message_list(messages)
 
 	requests.process_request(cb, DEFAULT_API_SITE + "/chat", {
 		"data" : {
 			"model" : self.model,
 			"messages" : msg_list,
+			"tools" : tools,
 			"stream" : false,
 		},
 		"method" : HTTPClient.METHOD_POST,
@@ -296,4 +274,30 @@ func fill_properties(obj: Object, item: Dictionary):
 	
 	obj.set_meta("item", item)
 	pass
+	
+func _prepare_message_list(messages: Array) -> Array:
+	var msg_list = []
+
+	msg_list.append({
+		"role": "system",
+		"content": self.system_prompt
+	})
+
+	for i in range(messages.size()):
+		var msg = messages[i]
+		if msg is String:
+			msg_list.append({
+				"role": "user",
+				"content": msg
+			})
+		elif msg is Dictionary:
+			if msg.has("content"):
+				msg_list.append({
+					"role": msg["role"] if msg.has("role") else "user",
+					"content": msg["content"]
+				})
+		else:
+			_logS("Invalid message type: " + str(msg))
+			continue
+	return msg_list
 #endregion

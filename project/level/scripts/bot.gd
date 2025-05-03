@@ -23,6 +23,8 @@ var TAG = "Bot"
 var selected_player : String
 var selected_player_updated : int = 0
 
+var ollama_tools = []
+
 enum BotState {
 	INIT,
 	WAITING,
@@ -42,26 +44,55 @@ func _init(state: GameStateServer, nick: String = "Bot", position: Vector3 = Vec
 	self.spawn_position = position
 
 func _ready():
+	var tool1 = {
+		'type': 'function',
+		'function': {
+			'name': 'subtract_two_numbers',
+			'description': 'Subtract two numbers',
+			'parameters': {
+			'type': 'object',
+			'required': ['a', 'b'],
+			'properties': {
+				'a': {'type': 'integer', 'description': 'The first number'},
+				'b': {'type': 'integer', 'description': 'The second number'},
+			},
+			},
+		},
+	}
+	var tool2 = {
+		'type': 'function',
+		'function': {
+			'name': 'move_forward',
+			'description': 'Move forward by a certain distance',
+			'parameters': {
+			'type': 'object',
+			'required': ['a'],
+			'properties': {
+				'a': {'type': 'integer', 'description': 'The distance to move forward'},
+			},
+			},
+		},
+	}
+	self.ollama_tools.append_array([tool1, tool2])
+
 	self.ollama = OllamaApi.new()
 	if self.system_prompt and !self.system_prompt.is_empty():
 		self.ollama.system_prompt = self.system_prompt
 	add_child(self.ollama)
 	pass
 
-func _process(delta):
+func _process(_delta):
 	var result = _find_player_by_distance(MAX_INTERACTION_DISTANCE)
 	if result.is_empty() or !ollama.is_ready():
 		if !self.selected_player.is_empty():
 			self.selected_player = ""
-			self.game_state.rpc("sync_player_look_at", 1, self.nickname, self.player.global_position + Vector3(0, 0, 1))
 	else:
 		self.selected_player = result[0]
 		var ts = Time.get_ticks_msec()
 		if ts - selected_player_updated > 500:
-			var dir_to_target = (result[1].global_position - self.player.global_position).normalized()
-			var dir_to_target_xz = Vector3(dir_to_target.x, 0, dir_to_target.z).normalized()
-			var look_at = self.player.global_position + dir_to_target_xz
-			self.game_state.rpc("sync_player_look_at", 1, self.nickname, look_at)
+			var look_at = result[1].global_position
+			look_at.y = self.player.global_position.y
+			player.set_look_at_point(look_at)
 			selected_player_updated = ts
 
 	var prev_state = bot_state		
@@ -110,9 +141,9 @@ func _find_player_by_distance(max_dist: float) -> Array:
 			return [p.nickname, p.character]
 	return []
 	
-func _is_player_selected_by_any(nickname: String) -> bool:
+func _is_player_selected_by_any(nick: String) -> bool:
 	for b in game_state.bots.values():
-		if b != self and  b.selected_player == nickname:
+		if b != self and  b.selected_player == nick:
 			return true
 	return false
 
@@ -125,11 +156,11 @@ func create_player(container : Node3D):
 	container.add_child(self.player, true)
 	_update_nick()
 	
-func on_message(nickname: String, message: String):
-	if nickname == self.nickname:
+func on_message(nick: String, message: String):
+	if nick == self.nickname:
 		return
 		
-	if nickname != self.selected_player:
+	if nick != self.selected_player:
 		return
 
 	if !ollama.is_ready():
@@ -137,23 +168,30 @@ func on_message(nickname: String, message: String):
 		return
 
 	var peer_id = game_state.multiplayer.get_remote_sender_id()
-	_logS("on_message: " + nickname + "(" + str(peer_id) + "): " + message)
+	_logS("on_message: " + nick + "(" + str(peer_id) + "): " + message)
 
 	if message.begins_with("/"):
-		_process_command(message.substr(1, message.length() - 1), nickname, peer_id)
+		_process_command(message.substr(1, message.length() - 1), nick, peer_id)
 		return
 
-	if nickname in messages.keys():
-		messages[nickname].append(message)
-	else:
-		messages[nickname] = [message]
+	_chat_ollama(nick, message)
 
-	ollama.chat(messages[nickname], func (result):
+func _chat_ollama(nick: String, message: Variant):
+	if nick in messages.keys():
+		messages[nick].append(message)
+	else:
+		messages[nick] = [message]
+
+	var handler = func (result):
 		var response : OllamaApi.ChatResponse = result
-		messages[nickname].append(response.message)
-		_send_response(response.message.content)
+		messages[nick].append(response.message)
+		if response.message.has("tool_calls"):
+			_process_function_call(nick, response.message.tool_calls)
+		else:
+			_send_response(response.message.content)
 		pass
-	)
+
+	ollama.chat(messages[nick], handler, ollama_tools)	
 
 func _send_response(message: String, peer_id: int = 0):
 	_logS("response: " + message)
@@ -161,6 +199,29 @@ func _send_response(message: String, peer_id: int = 0):
 		self.game_state.rpc_id(peer_id, "msg_rpc", self.nickname, message)
 	else:
 		self.game_state.rpc("msg_rpc", self.nickname, message)
+
+func _process_function_call(nick: String, calls: Array):
+	for f in calls:
+		_logS("function " + f.function.name + " args: " + str(f.function.arguments))
+		match f.function.name:
+			"subtract_two_numbers":
+				var result = subtract_two_numbers(f.function.arguments)
+				_chat_ollama(nick, {
+					"role": "tool",
+					"name": f.function.name,
+					"content" : result
+				})
+			"move_forward":
+				var result = move_forward(f.function.arguments)
+				_chat_ollama(nick, {
+					"role": "tool",
+					"name": f.function.name,
+					"content" : result
+				})
+			_:
+				_logS("Unknown function call: " + f.function.name)
+			
+	pass
 
 func _process_command(command: String, peer_nickname: String, peer_id: int):
 	command = command.strip_edges().to_lower()
@@ -193,3 +254,19 @@ func _process_command(command: String, peer_nickname: String, peer_id: int):
 		_:
 			_send_response("Unknown command: " + command, peer_id)
 	
+func subtract_two_numbers(args: Dictionary):
+	if args.has("a") and args.has("b"):
+		var a = args["a"]
+		var b = args["b"]
+		var result = a - b
+		return str(result)
+	else:
+		return "Invalid arguments"
+
+func move_forward(args: Dictionary) -> String:
+	if args.has("a"):
+		var distance = args["a"]
+		self.player.move_forward(float(distance))
+		return "ok"
+	else:
+		return "Invalid arguments"

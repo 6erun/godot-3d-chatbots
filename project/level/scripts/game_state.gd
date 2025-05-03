@@ -57,12 +57,6 @@ func sync_player_skin(id: int, node_name: String, skin_name: String):
 		player.set_player_skin(skin_name)
 
 @rpc("any_peer", "call_local")
-func sync_player_look_at(_id: int, node_name: String, new_position: Vector3):
-	var player: Character = players_container.get_node(node_name)
-	if player:
-		player.look_at(new_position, Vector3(0, 1, 0), true)
-
-@rpc("any_peer", "call_local")
 func msg_rpc(nick, msg):
 	pass
 	

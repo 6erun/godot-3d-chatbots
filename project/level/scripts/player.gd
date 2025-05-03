@@ -20,9 +20,17 @@ const JUMP_VELOCITY = 10
 var _current_speed: float
 var _respawn_point = Vector3(0, 5, 0)
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
+var is_npc = false
+var target_distance = 0
+var target_direction = Vector2(0, 1)
+var look_at_point = Vector3(0, 0, 1)
 
 func _enter_tree():
-	set_multiplayer_authority(str(name).to_int())
+	var id_str = str(name)
+	var owner_id = id_str.to_int() if id_str.is_valid_int() else 1
+	is_npc = !id_str.is_valid_int()
+
+	set_multiplayer_authority(owner_id)
 	$SpringArmOffset/SpringArm3D/Camera3D.current = is_multiplayer_authority()
 	
 func _ready():
@@ -32,17 +40,14 @@ func _ready():
 func _physics_process(delta):
 	if not is_multiplayer_authority(): return
 	
-	var current_scene = get_tree().get_current_scene()
-	var client : GameStateClient = current_scene.get("game_state")
+	if !is_npc:
+		var current_scene = get_tree().get_current_scene()
+		var client : GameStateClient = current_scene.get("game_state")
 
-	if client.is_chat_active() and is_on_floor():
-		freeze()
-		return
-		
-	#if not is_on_floor():
-		#velocity.y -= gravity * delta
-		#_body.animate(velocity)
-		
+		if client.is_chat_active() and is_on_floor():
+			freeze()
+			return
+				
 	if is_on_floor():
 		if Input.is_action_just_pressed("jump"):
 			velocity.y = JUMP_VELOCITY
@@ -54,6 +59,14 @@ func _physics_process(delta):
 	_body.animate(velocity)
 	_check_fall_and_respawn()
 	
+	if is_npc:
+		if target_distance > 0:
+			target_distance -= delta * _current_speed	
+		else:
+			target_distance = 0
+			target_direction = Vector2.ZERO
+			look_at(look_at_point, Vector3(0, 1, 0), true)
+	
 func freeze():
 	velocity.x = 0
 	velocity.z = 0
@@ -62,13 +75,18 @@ func freeze():
 	
 func _move() -> void:
 	var _input_direction: Vector2 = Vector2.ZERO
-	if is_multiplayer_authority():
-		_input_direction = Input.get_vector(
-			"move_left", "move_right",
-			"move_forward", "move_backward"
-			)
-
-	var _direction: Vector3 = transform.basis * Vector3(_input_direction.x, 0, _input_direction.y).normalized()
+	var _direction: Vector3
+	
+	if is_multiplayer_authority():		
+		if is_npc:
+			_input_direction = target_direction.normalized()
+			_direction = Vector3(_input_direction.x, 0, _input_direction.y).normalized()
+		else:
+			_input_direction = Input.get_vector(
+				"move_left", "move_right",
+				"move_forward", "move_backward"
+				)
+			_direction = transform.basis * Vector3(_input_direction.x, 0, _input_direction.y).normalized()
 	
 	is_running()
 	_direction = _direction.rotated(Vector3.UP, _spring_arm_offset.rotation.y)
@@ -80,7 +98,24 @@ func _move() -> void:
 		return
 	
 	velocity.x = move_toward(velocity.x, 0, _current_speed)
-	velocity.z = move_toward(velocity.z, 0, _current_speed)
+	velocity.z = move_toward(velocity.z, 0, _current_speed)	
+	
+
+# Add this function to get the forward direction vector
+func get_forward_direction() -> Vector3:
+	# Use the -Z axis transformed by the player's basis
+	# The negative Z is forward in Godot's coordinate system
+	return -transform.basis.z.normalized()
+
+# Or modify your move_forward function to use the forward direction
+func move_forward(distance: float) -> void:
+	target_distance = distance
+	# Convert the forward direction to XZ plane for the target_direction
+	var forward = get_forward_direction()
+	target_direction = Vector2(forward.x, forward.z)
+	
+func set_look_at_point(point: Vector3):
+	look_at_point = point
 	
 func is_running() -> bool:
 	if Input.is_action_pressed("shift"):
